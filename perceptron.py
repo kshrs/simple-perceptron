@@ -55,6 +55,7 @@ class Stimuli:
     def __init__(self, dims):
         self.dims = dims # means dims x dims {square stimuli}
         self.gen_stimuli()
+        self.nf = False
 
     def clear_stimuli(self):
         self.image = np.zeros((self.dims, self.dims), dtype=int)
@@ -136,12 +137,19 @@ class Stimuli:
         y_data = []
         for i in range(math.floor(n/2)):
             val = 1 
-            self.gen_stimuli("vline-nf")
+            if self.nf:
+                self.gen_stimuli("vline-nf")
+            else:
+                self.gen_stimuli("vline")
+
             x_data.append(self.image.copy())
             y_data.append(val)
         for i in range(math.floor(n/2), n):
             val = 2 
-            self.gen_stimuli("hline-nf")
+            if self.nf:
+                self.gen_stimuli("hline-nf")
+            else:
+                self.gen_stimuli("hline")
             x_data.append(self.image.copy())
             y_data.append(val)
         tup = list(zip(x_data, y_data))

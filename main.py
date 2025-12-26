@@ -1,7 +1,4 @@
-import numpy as np
 import matplotlib.pyplot as plt
-import math
-import time
 from perceptron import Perceptron, Stimuli, Aunit, SourceSet, Response
 
 
@@ -23,6 +20,10 @@ s1 = SourceSet(aunits[:25])
 s1.type = "vline"
 s2 = SourceSet(aunits[25:])
 s2.type = "hline"
+
+### for nf testing uncomment this code
+# stimuli.nf = True
+
 
 
 # Connect each Aunit to appropriate stimuli cell
