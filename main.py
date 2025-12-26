@@ -2,361 +2,77 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import time
+from perceptron import Perceptron, Stimuli, Aunit, SourceSet, Response
 
-class Aunit:
-    id = 0
-    def __init__(self, x, y):
-        Aunit.id += 1
-        self.id = Aunit.id
-        
-        self.x = x
-        self.y = y
 
-        self.x_conns = {}
-        self.y_conns = {}
 
-        self.status = 0
-        self.value = 1 + (np.random.random() * 0.02)
+### Setup of the connections and variables
 
-        self.e = 0
-        self.i = 0
 
-
-    def display_connection_info(self):
-        print("X conns: ", self.x_conns)
-        print("Y conns: ", self.y_conns)
-
-    def compute(self, image, threshold):
-        for pos in self.x_conns.values():
-            if image[pos[0]][pos[1]] == 1:
-                self.e += 1
-        for pos in self.y_conns.values():
-            if image[pos[0]][pos[1]] == 1:
-                self.i += 1
-        
-        if ((self.e - self.i) >= threshold):
-            self.status = 1
-
-        self.e = 0
-        self.i = 0
-
-
-
-
-
-class SourceSet:
-    id = 0
-    def __init__(self, Aunits):
-        SourceSet.id += 1
-        self.id = SourceSet.id
-
-        self.Aunits = Aunits
-
-        self.type = "default"
-
-
-class Stimuli:
-    def __init__(self, dims):
-        self.dims = dims # means dims x dims {square stimuli}
-        self.gen_stimuli()
-
-    def clear_stimuli(self):
-        self.image = np.zeros((self.dims, self.dims), dtype=int)
-
-    def gen_stimuli(self, type="default"):
-        start = np.random.randint(self.dims)
-
-        self.clear_stimuli()
-
-
-        if (type == "default"):
-            type = np.random.choice(["vline", "hline"])
-
-
-        if (type == "vline"):
-            self.image[0:self.dims, start] = 1
-        if (type == "hline"):
-            self.image[start, 0:self.dims] = 1
-
-    def show_stimuli(self):
-        print(self.image)
-
-    def gen_and_show_stimuli(self, type="default"):
-        self.gen_stimuli(type)
-        print(self.image)
-
-    def __add__(self, other):
-        possible_connections = [(i,j) for i in range(self.dims) for j in range(self.dims)]
-        if isinstance(other, SourceSet):
-            Aunits = other.Aunits
-            x = Aunits[0].x
-            y = Aunits[0].y
-
-            n = len(Aunits)
-
-            pos_x = 0
-            pos_y = 0
-
-            if other.type == "hline":
-                for Aunit in Aunits:
-                    for e in range(x):
-                        if (pos_x >= len(possible_connections)):
-                            pos_x = 0
-                        Aunit.x_conns[e] = possible_connections[pos_x]
-                        pos_x += 1
-                    step = 0
-
-                    for i in range(y):
-                        if (pos_y >= len(possible_connections)):
-                            step += 1
-                            pos_y = 0 + step
-                        Aunit.y_conns[i] = possible_connections[pos_y]
-                        pos_y += self.dims
-            else:
-                # vline
-                for Aunit in Aunits:
-                    step = 0
-                    for e in range(x):
-                        if (pos_x >= len(possible_connections)):
-                            step += 1
-                            pos_x = 0 + step
-                        Aunit.x_conns[e] = possible_connections[pos_x]
-                        pos_x += self.dims
-
-                    for i in range(y):
-                        if (pos_y >= len(possible_connections)):
-                            pos_y = 0
-                        Aunit.y_conns[i] = possible_connections[pos_y]
-                        pos_y += 1
-
-
-    def create_training_set(self, n):
-        x_data = []
-        y_data = []
-        for i in range(math.floor(n/2)):
-            val = 1 
-            self.gen_stimuli("vline")
-            x_data.append(self.image.copy())
-            y_data.append(val)
-        for i in range(math.floor(n/2), n):
-            val = 2 
-            self.gen_stimuli("hline")
-            x_data.append(self.image.copy())
-            y_data.append(val)
-        tup = list(zip(x_data, y_data))
-        np.random.shuffle(tup)
-
-        x_data, y_data = zip(*tup)
-        return (x_data, y_data)
-
-
-class Response:
-    id = 0
-    def __init__(self, sourceset):
-        Response.id += 1
-        self.id = Response.id
-
-        self.status = 0
-        self.SourceSet = sourceset
-
-        self.sum = 0
-
-
-    def compute_sum(self):
-        for Aunit in self.SourceSet.Aunits:
-            self.sum += Aunit.value * Aunit.status
-    def compute_mean(self):
-        count = 0
-        for Aunit in self.SourceSet.Aunits:
-            if Aunit.status == 1:
-                count += 1
-                self.sum += Aunit.value
-
-        if count > 0:
-            self.sum = self.sum / count
-            count = 0
-
-
-
-
-
-class Perceptron:
-    def __init__(self):
-        print("The Old Perceptron is back")
-
-        self.Aunits = []
-        self.SourceSets = []
-        self.ResponseUnits = []
-        self.Stimuli = 0
-
-        self.threshold = 0
-
-        self.response_result = 0
-
-
-    def show_info_of_response(self, response_id):
-        for ResponseUnit in self.ResponseUnits:
-            if (response_id == ResponseUnit.id):
-                print("Source Set ID: ", end="")
-                print(ResponseUnit.SourceSet.id)
-
-                print("Active A units: ", [(Aunit.id,Aunit.value) if Aunit.status == 1 else None for Aunit in ResponseUnit.SourceSet.Aunits])
-                return
-
-
-    def refresh(self):
-        for ResponseUnit in self.ResponseUnits:
-            ResponseUnit.status = 0
-            ResponseUnit.sum = 0
-            for Aunit in ResponseUnit.SourceSet.Aunits:
-                Aunit.status = 0
-        self.response_result = 0
-
-    def plot(self, ax=None):
-        if ax is None:
-            plt.imshow(self.Stimuli.image, cmap="Greys")
-            title = "Response " + str(self.response_result) + " | " + ("Vertical" if self.response_result == 1 else "Horizontal")
-            print(title)
-            plt.title(title)
-            plt.show()
-        else:
-            ax.imshow(self.Stimuli.image, cmap="Greys")
-            title = "Response " + str(self.response_result) + " | " + ("Vertical" if self.response_result == 1 else "Horizontal")
-            print(title)
-            ax.set_title(title)
-            
-
-    def compute(self, image=None):
-        if image is None:
-            image = self.Stimuli.image
-        else:
-            self.Stimuli.image = image
-        response_sum_pair = {}
-        for Aunit in self.Aunits:
-            Aunit.compute(image, self.threshold)
-        for ResponseUnit in self.ResponseUnits:
-            ResponseUnit.compute_mean()
-            response_sum_pair[ResponseUnit.id] = ResponseUnit.sum
-
-        result_id = max(response_sum_pair, key = response_sum_pair.get)
-        print(max(response_sum_pair, key = response_sum_pair.get))
-        self.response_result = result_id
-        max_value = response_sum_pair[result_id]
-        print(response_sum_pair)
-
-        self.show_info_of_response(result_id)
-        print(f"Response: {result_id} Value: {max_value}")
-        pretty_result = "Response " + str(self.response_result) + " | " + ("Vertical" if self.response_result == 1 else "Horizontal")
-        print(pretty_result)
-        print("------------------------")
-        print()
-
-    def reinforce(self, id):
-        if id == self.response_result:
-            print("Correct Response")
-            # if correct response
-            # # Reward the active A units in the source set and 
-            for ResponseUnit in self.ResponseUnits:
-                if self.response_result == ResponseUnit.id:
-                    for Aunit in ResponseUnit.SourceSet.Aunits:
-                        if Aunit.status == 1:
-                            Aunit.value += 1
-                else:
-                    for Aunit in ResponseUnit.SourceSet.Aunits:
-                        if Aunit.status == 1:
-                            Aunit.value -= 1
-        else:
-            print("Wrong Response")
-            for ResponseUnit in self.ResponseUnits:
-                if self.response_result == ResponseUnit.id:
-                    for Aunit in ResponseUnit.SourceSet.Aunits:
-                        if Aunit.status == 1:
-                            Aunit.value -= 1
-                else:
-                    for Aunit in ResponseUnit.SourceSet.Aunits:
-                        if Aunit.status == 1:
-                            Aunit.value += 1
-    def display_pa(self):
-        e_init = self.threshold
-        x_init = self.Aunits[0].x
-        y_init = self.Aunits[0].y
-        i_init = 0
-        def Pei(e, i):
-            R = np.count_nonzero(self.Stimuli.image.copy()) / (self.Stimuli.dims * self.Stimuli.dims) 
-            result = (math.comb(x_init, e) * math.pow(R, e) * math.pow((1 - R), x_init-e)) * (math.comb(y_init, i) * math.pow(R, i) * math.pow((1 - R), y_init-i))
-            return result
-        outer_sum = 0
-        for e in range(e_init, x_init+1):
-            for i in range(i_init, min(y_init,e-self.threshold)):
-                outer_sum += Pei(e, i)
-
-        p_a = outer_sum
-        print("P_a: ", p_a)
-
-
-
-
+# Stimuli of 5x5 grid
 stimuli = Stimuli(5)
 
-
+# Aunit setup.
+# Array of 50 with x = 5 and y = 1
 aunits = [Aunit(5, 1) for i in range(50)]
 
+
+## Two source set as it is a binary classifier
+# Use vline, hline for full length and vline-nf,hline-nf for irregular length
 s1 = SourceSet(aunits[:25])
 s1.type = "vline"
 s2 = SourceSet(aunits[25:])
 s2.type = "hline"
 
+
+# Connect each Aunit to appropriate stimuli cell
+### Modified the code base purely for line separator.
 stimuli+s1
 stimuli+s2
 
 
-# print("Source Set ID: ", s1.id)
-# for Aunit in s1.Aunits:
-#     print("A unit ID: ", Aunit.id)
-#     Aunit.display_connection_info()
-# 
-# print()
-# 
-# print("Source Set ID: ", s2.id)
-# for Aunit in s2.Aunits:
-#     print("A unit ID: ", Aunit.id)
-#     Aunit.display_connection_info()
-
-
+# Connection of source set to the appropriate response
 r1 = Response(s1)
 r2 = Response(s2)
 
+
+# Init of perceptron and set up of instances 
 perceptron = Perceptron()
 perceptron.Aunits = aunits
 perceptron.SourceSets = [s1, s2]
 perceptron.ResponseUnits = [r1, r2]
 perceptron.Stimuli = stimuli
+# threshold to fire a Aunit
 perceptron.threshold = 2
 
+
 # stimuli.show_stimuli()
-# perceptron.compute()
+# perceptron.compute(default=self.Stimuli.image)
 # perceptron.refresh()
-# perceptron.plot()
+# perceptron.plot(default=ax)
+# perceptron.forget_weights()
 
 
-x_train, y_train = stimuli.create_training_set(1000)
+# Creation of training sets
+x_train, y_train = stimuli.create_training_set(100)
 x_test, y_test = stimuli.create_training_set(16)
 
 
+
+# This is how training occurs
 for i in range(len(x_train)):
     perceptron.compute(x_train[i])
     perceptron.reinforce(y_train[i])
     perceptron.refresh()
-
-    # time.sleep(5)
 
 
 correct = 0
 wrong = 0
 total = len(x_test)
 
+# Testing phase and plot the results
+### Modify the appropirate subplots values to display the result of array n
 fig, ax = plt.subplots(4, 4)
-
 ax_flat = ax.flat
 for i in range(len(x_test)):
     perceptron.compute(x_test[i])
@@ -367,8 +83,11 @@ for i in range(len(x_test)):
         wrong += 1
     perceptron.plot(ax)
     perceptron.refresh()
+plt.title(f"Accuracy: {correct/total}")
 plt.show()
 
+
+## This is the test phase code. pure test to plots
 # for i in range(len(x_test)):
 #     print(x_test[i])
 #     perceptron.compute(x_test[i])
@@ -378,19 +97,64 @@ plt.show()
 #         wrong += 1
 #     perceptron.refresh()
 
+
+## Display of results
 print("Total: ", len(x_test))
 print("Correct: ", correct)
 print("Wrong: ", wrong)
 print("Correct / Total: ", correct/total)
 
 
-# for i in range(10):
-#     print(x_test[i], "Actual Response: ", y_test[i])
+### Stress test and analysis code. (Use only for testing)
+#
+# accuracy = []
+# n_values = []
+#
+# n = 1
+# while (n <= 1000):
+#     perceptron.forget_weights()
+#     x_train, y_train = stimuli.create_training_set(n*2)
+#     x_test, y_test = stimuli.create_training_set(100)
+#
+#
+#     for i in range(len(x_train)):
+#         perceptron.compute(x_train[i])
+#         perceptron.reinforce(y_train[i])
+#         perceptron.refresh()
+#
+#     correct = 0
+#     wrong = 0
+#     total = len(x_test)
+#     for i in range(len(x_test)):
+#         print(x_test[i])
+#         perceptron.compute(x_test[i])
+#         if perceptron.response_result == y_test[i]:
+#             correct += 1
+#         else:
+#             wrong += 1
+#         perceptron.refresh()
+#
+#
+#     n_values.append(n)
+#     accuracy.append(correct/total)
+#
+#     if n<100:
+#         n+=10
+#     else:
+#         n+=100
+#
+# plt.plot(n_values, accuracy, color="blue")
+# plt.xlabel("Number of samples per stimuli")
+# plt.ylabel("Accuracy (per 100 samples tested)")
+# plt.title("HLine Vs VLine Separator (irregular length)")
+# plt.show()
+#
 
+
+### Info of the Perceptron
 # print(perceptron.Aunits)
 # print(perceptron.SourceSets)
 # print(perceptron.ResponseUnits)
 # print(perceptron.response_result)
 # print(perceptron.Stimuli)
 # print(perceptron.threshold)
-perceptron.display_pa()
